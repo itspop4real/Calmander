@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MindCloud</title>
+    <!-- Links to the manifest file for PWA functionality -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
@@ -513,10 +514,11 @@
         </button>
     </div>
 
+    <!-- Service worker registration for PWA -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('service-worker.js')
                     .then(registration => {
                         console.log('Service Worker registered with scope:', registration.scope);
                     })
