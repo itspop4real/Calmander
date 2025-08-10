@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindCloud</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
+    <meta name="theme-color" content="#94a3b8" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS variables for a dynamic theme */
+        :root {
+            --accent-color: #5b21b6; /* Default Violet-700 */
+            --bg-color-light: #e2e8f0;
+            --bg-color-dark: #0f172a;
+            --text-color-light: #1f2937;
+            --text-color-dark: #f3f4f6;
+            --glass-bg-light: rgba(255, 255, 255, 0.4);
+            --glass-bg-dark: rgba(255, 255, 255, 0.1);
+            --shadow-color-light: rgba(0, 0, 0, 0.1);
+            --shadow-color-dark: rgba(0, 0, 0, 0.3);
+            --seasonal-opacity: 1;
+            --sky-overlay-opacity: 0.7; /* New variable for sky transparency */
+        }
+
+        /* Default Light Mode Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color-light);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .themed-bg {
+            background-color: var(--accent-color);
+        }
+        .themed-text {
+            color: var(--accent-color);
+        }
+        .themed-ring {
+            border-color: var(--accent-color);
+        }
+        .themed-shadow {
+            box-shadow: 0 4px 6px -1px var(--shadow-color-light), 0 2px 4px -2px var(--shadow-color-light);
+        }
+        .glass-card {
+            background-color: var(--glass-bg-light);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        }
+        .active-tab {
+            background-color: var(--glass-bg-light);
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .tab-button:hover {
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+        .active-tab:hover {
+            background-color: var(--glass-bg-light);
+        }
+        .note-day {
+            /* Now uses Tailwind ring-* classes directly in JS */
+        }
+        .day-box {
+            background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .day-box:not(.note-day):hover {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        .active-day {
+            background-color: var(--accent-color);
+            color: white;
+            font-weight: 600;
+        }
+        .action-btn {
+            background: var(--accent-color);
+            transition: all 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .input-glass {
+            background-color: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-glass::placeholder {
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Dark Mode Styles */
+        body.dark {
+            color: var(--text-color-dark);
+        }
+        .dark .glass-card {
+            background-color: var(--glass-bg-dark);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .dark .active-tab {
+            background-color: var(--glass-bg-dark);
+            color: var(--accent-color);
+        }
+        .dark .tab-button:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        .dark .day-box {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .dark .day-box:not(.note-day):hover {
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .dark .input-glass {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .dark .input-glass::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Modal state classes */
+        .modal-active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-inactive {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* --- New/Revised Styles for the Calendar layout --- */
+        #calendar-view-container {
+            display: flex;
+            flex-direction: column; /* Default to column on mobile */
+            gap: 1rem;
+            transition: all 0.5s ease-in-out; /* Smooth transition for the layout change */
+        }
+
+        #calendar-container {
+            width: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        
+        #day-details-panel {
+            width: 100%; /* Default full width on mobile */
+            transition: width 0.5s ease-in-out, opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        /* Media queries for the side-by-side layout on larger screens */
+        @media (min-width: 768px) {
+            #calendar-view-container {
+                flex-direction: row; /* Switch to row on medium screens and up */
+            }
+
+            #calendar-container.shrunk {
+                width: 60%;
+            }
+
+            #day-details-panel.visible {
+                width: 40%;
+                opacity: 1;
+                transform: translateX(0);
+            }
+            
+            /* Hide on larger screens initially */
+            #day-details-panel {
+                position: absolute;
+                top: 0;
+                right: 0;
+                height: 100%;
+                max-height: 100%;
+                pointer-events: none;
+            }
+
+            #day-details-panel.visible {
+                position: relative;
+                pointer-events: auto;
+            }
+        }
+
+        /* New styles for the two details windows, now contained in one panel */
+        .details-window {
+            flex: 1;
+        }
+
+        /* --- Custom Background and Dynamic Sky CSS --- */
+        #background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 1s ease-in-out;
+            z-index: -2; /* Background is behind everything */
+        }
+
+        .dynamic-sky {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            transition: background-color 2s ease-in-out;
+            background: linear-gradient(to bottom, #a5b4fc, #d1d5db); /* Default day sky */
+            z-index: -1; /* Sky is an overlay, between background and content */
+            opacity: var(--sky-overlay-opacity); /* New transparency for the sky overlay */
+        }
+        
+        .dynamic-sky.night {
+            background: linear-gradient(to bottom, #111827, #374151);
+        }
+
+        .celestial-body {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            transition: transform 1s ease-out;
+            will-change: transform;
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+        }
+
+        .celestial-body.sun {
+            background-color: #FFC107;
+        }
+
+        .celestial-body.moon {
+            background-color: #E0E0E0;
+        }
+        
+        .clouds-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0; /* Initially hidden */
+            transition: opacity 1s ease-in-out;
+            background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
+        }
+
+        .clouds-container.cloudy {
+            opacity: 1;
+        }
+
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 100px;
+            filter: blur(10px);
+            animation: cloud-move linear infinite;
+        }
+
+        .cloud::before,
+        .cloud::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+        }
+
+        .cloud-1 {
+            width: 120px;
+            height: 40px;
+            animation-duration: 25s;
+        }
+
+        .cloud-1::before {
+            width: 60px;
+            height: 60px;
+            top: -30px;
+            left: 10px;
+        }
+
+        .cloud-1::after {
+            width: 80px;
+            height: 80px;
+            top: -50px;
+            left: 50px;
+        }
+
+        .cloud-2 {
+            width: 150px;
+            height: 50px;
+            animation-duration: 30s;
+        }
+
+        .cloud-2::before {
+            width: 70px;
+            height: 70px;
+            top: -40px;
+            left: 20px;
+        }
+
+        .cloud-2::after {
+            width: 90px;
+            height: 90px;
+            top: -60px;
+            left: 70px;
+        }
+
+        @keyframes cloud-move {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100vw); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen transition-colors duration-300">
+
+    <!-- New custom background container -->
+    <div id="background-container"></div>
+    
+    <!-- Dynamic sky background container is now an overlay -->
+    <div id="dynamic-sky" class="dynamic-sky">
+        <div id="clouds-container" class="clouds-container">
+            <!-- Clouds will be dynamically created here -->
+        </div>
+        <div id="celestial-body" class="celestial-body"></div>
+    </div>
+
+    <div id="modal-container" class="fixed inset-0 bg-gray-900 bg-opacity-30 flex items-center justify-center z-50 transition-opacity duration-300 modal-inactive">
+        <div class="glass-card p-8 rounded-3xl shadow-lg w-11/12 md:w-1/3">
+            <h2 id="modal-title" class="text-2xl font-bold mb-4 text-center"></h2>
+            <div id="modal-body" class="mb-4"></div>
+            <div id="modal-footer" class="flex justify-end space-x-2"></div>
+        </div>
+    </div>
+
+    <header class="themed-bg text-white shadow-md sticky top-0 z-40 p-4 flex justify-between items-center themed-shadow glass-card !bg-transparent">
+        <h1 class="text-3xl font-extrabold tracking-wide">MindCloud</h1>
+        <div class="flex space-x-4">
+            <button id="lock-app-btn" class="px-4 py-2 bg-white text-violet-600 rounded-full font-bold shadow-md hover:bg-gray-100 transition-colors duration-300">Lock App</button>
+            <button id="unlock-app-btn" class="px-4 py-2 bg-white text-violet-600 rounded-full font-bold shadow-md hover:bg-gray-100 transition-colors duration-300 hidden">Unlock App</button>
+        </div>
+    </header>
+
+    <nav class="sticky top-[72px] md:top-[76px] z-30">
+        <ul class="flex flex-wrap justify-center space-x-2 md:space-x-4 p-2">
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text active-tab" data-tab="calendar">Calendar</button></li>
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text" data-tab="meditation">Meditation</button></li>
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text" data-tab="planner">Planner</button></li>
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text" data-tab="therapist">AI Therapist</button></li>
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text" data-tab="notes">Notes</button></li>
+            <li><button class="tab-button px-4 py-2 rounded-full themed-text" data-tab="lyrics">Lyrics</button></li>
+        </ul>
+    </nav>
+
+    <main id="app-content" class="container mx-auto p-4 flex-grow relative z-10 hidden">
+        <!-- Calendar Tab Content -->
+        <div id="calendar" class="tab-content">
+            <div id="calendar-view-container" class="flex flex-col md:flex-row gap-4">
+                
+                <!-- The main calendar container -->
+                <section id="calendar-container" class="p-6 glass-card rounded-3xl shadow-lg relative z-10 w-full transition-all duration-500 mx-auto">
+                    <h2 class="text-2xl font-bold mb-4 text-center themed-text">My Calendar</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="prev-month-btn" class="themed-text hover:text-gray-900 transition-colors duration-200"><i class="fas fa-chevron-left"></i></button>
+                        <h3 id="current-month-year" class="text-xl font-bold">Month, Year</h3>
+                        <button id="next-month-btn" class="themed-text hover:text-gray-900 transition-colors duration-200"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 md:gap-4 text-center font-semibold">
+                        <div class="themed-text text-xs md:text-base">Sun</div>
+                        <div class="themed-text text-xs md:text-base">Mon</div>
+                        <div class="themed-text text-xs md:text-base">Tue</div>
+                        <div class="themed-text text-xs md:text-base">Wed</div>
+                        <div class="themed-text text-xs md:text-base">Thu</div>
+                        <div class="themed-text text-xs md:text-base">Fri</div>
+                        <div class="themed-text text-xs md:text-base">Sat</div>
+                    </div>
+                </section>
+
+                <!-- The day details panel -->
+                <div id="day-details-panel" class="p-6 glass-card rounded-3xl shadow-lg transition-all duration-500 overflow-y-auto hidden">
+                    <div class="flex justify-between items-center mb-4 sticky top-0 bg-[rgba(255,255,255,0.4)] backdrop-blur-md z-10 p-2 -m-2 rounded-t-3xl">
+                        <h2 id="day-details-date" class="text-2xl font-bold themed-text"></h2>
+                        <button id="close-day-details-btn" class="themed-text text-2xl"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <!-- Day details content, now in one single scrollable panel -->
+                    <div id="notes-events-details-window" class="flex flex-col gap-4">
+                        
+                        <!-- AI Summary Window -->
+                        <div class="glass-card rounded-xl p-4 mb-4 shadow-sm details-window">
+                            <h3 class="font-bold text-lg mb-2">AI Daily Summary</h3>
+                            <div id="ai-summary-output" class="p-2 mt-2 glass-card rounded-md min-h-[50px] shadow-inner text-sm italic mb-2">
+                                Click 'Generate' to get an AI summary of your day...
+                            </div>
+                            <button id="generate-summary-btn" class="action-btn themed-bg text-white py-2 px-4 rounded-full font-bold shadow-md transition-colors duration-300 w-full">✨ Generate Summary</button>
+                        </div>
+                        
+                        <!-- Daily Info Window -->
+                        <div class="glass-card rounded-xl p-4 mb-4 shadow-sm details-window">
+                            <h3 class="font-bold text-lg mb-2">Daily Info</h3>
+                            <div id="daily-info-content">
+                                <p id="weather-info" class="text-gray-600 dark:text-gray-400 mb-2">Loading weather...</p>
+                                <p id="traffic-info" class="text-gray-600 dark:text-gray-400 mb-2">Loading traffic...</p>
+                                <p id="holiday-info" class="text-gray-600 dark:text-gray-400">Loading holiday/quote...</p>
+                            </div>
+                        </div>
+
+                        <!-- Notes Window -->
+                        <div class="glass-card rounded-xl p-4 mb-4 shadow-sm details-window">
+                            <h3 class="font-bold text-lg mb-2">Notes</h3>
+                            <textarea id="daily-note-text" class="input-glass w-full p-2 rounded-md focus:ring-2 themed-ring resize-y text-inherit" placeholder="Add a note for this day..."></textarea>
+                            <button id="save-daily-note-btn" class="action-btn themed-bg text-white py-2 px-4 rounded-full font-bold shadow-md transition-colors duration-300 mt-2 w-full">Save Note</button>
+                            <div id="daily-notes-list" class="mt-4 space-y-2"></div>
+                        </div>
+
+                        <!-- Events Window -->
+                        <div class="glass-card rounded-xl p-4 mb-4 shadow-sm details-window">
+                            <h3 class="font-bold text-lg mb-2">Events</h3>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="event-input" placeholder="Add event(s), separated by commas" class="input-glass w-full p-2 rounded-md focus:ring-2 themed-ring text-inherit">
+                                <button id="add-event-btn" class="action-btn themed-bg text-white p-2 rounded-full font-bold shadow-md transition-colors duration-300">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div id="event-bubbles-container" class="flex flex-wrap gap-2 mt-4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <section id="meditation" class="tab-content p-6 glass-card rounded-3xl shadow-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center themed-text">Meditation</h2>
+            <p class="mb-4 text-center text-gray-600 dark:text-gray-300">Generate a custom guided meditation script.</p>
+            <textarea id="meditationTopic" class="input-glass w-full p-4 rounded-xl focus:ring-2 themed-ring resize-y transition-all duration-200 text-inherit mb-4" placeholder="e.g., 'A 10-minute meditation for stress relief' or 'A short meditation to help with focus'"></textarea>
+            <button id="generate-meditation-btn" class="action-btn themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300 w-full mb-4">✨ Generate Meditation</button>
+            <div id="meditationScript" class="mt-4 p-4 glass-card rounded-xl whitespace-pre-wrap min-h-[100px] shadow-inner"></div>
+        </section>
+
+        <section id="planner" class="tab-content p-6 glass-card rounded-3xl shadow-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center themed-text">Daily Planner</h2>
+            <textarea id="plannerText" class="input-glass w-full h-40 p-4 rounded-xl focus:ring-2 themed-ring resize-y transition-all duration-200 text-inherit" placeholder="Your plan for today..."></textarea>
+            <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mt-4">
+                <button id="save-planner-btn" class="action-btn w-full md:w-1/2 themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">Save Plan</button>
+                <button id="generate-schedule-btn" class="action-btn w-full md:w-1/2 themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">✨ Generate Schedule</button>
+            </div>
+            <div id="generatedSchedule" class="mt-4 p-4 glass-card rounded-xl whitespace-pre-wrap min-h-[80px] shadow-inner"></div>
+        </section>
+
+        <section id="therapist" class="tab-content p-6 glass-card rounded-3xl shadow-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center themed-text">AI Therapist</h2>
+            <label for="therapistStyle" class="block mb-2 font-semibold">Personality:</label>
+            <select id="therapistStyle" class="input-glass w-full p-2 rounded-xl mb-4 focus:ring-2 themed-ring text-inherit">
+                <option value="gentle">Gentle & Supportive</option>
+                <option value="direct">Direct & Honest</option>
+                <option value="motivational">Motivational Coach</option>
+            </select>
+            <textarea id="therapistInput" class="input-glass w-full h-40 p-4 rounded-xl focus:ring-2 themed-ring resize-y transition-all duration-200 text-inherit" placeholder="Tell me what's on your mind..."></textarea>
+            <button id="ask-therapist-btn" class="action-btn mt-4 w-full themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">Ask</button>
+            <div id="therapistResponse" class="mt-4 p-4 glass-card rounded-xl whitespace-pre-wrap min-h-[80px] shadow-inner"></div>
+        </section>
+
+        <section id="notes" class="tab-content p-6 glass-card rounded-3xl shadow-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center themed-text">Notes</h2>
+            <textarea id="noteText" class="input-glass w-full h-40 p-4 rounded-xl focus:ring-2 themed-ring resize-y transition-all duration-200 text-inherit" placeholder="Write a note for today..."></textarea>
+            <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mt-4">
+                <button id="save-note-btn" class="action-btn w-full md:w-1/2 themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">Save Note</button>
+                <button id="summarize-notes-btn" class="action-btn w-full md:w-1/2 themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">✨ Summarize Notes</button>
+            </div>
+            <h3 class="text-xl font-bold mt-6 mb-2 themed-text">All Notes</h3>
+            <ul id="allNotes" class="list-disc list-inside space-y-2"></ul>
+            <h3 id="notesSummaryTitle" class="text-xl font-bold mt-6 mb-2 themed-text hidden">Notes Summary</h3>
+            <div id="notesSummary" class="p-4 glass-card rounded-xl whitespace-pre-wrap min-h-[80px] shadow-inner"></div>
+        </section>
+
+        <section id="lyrics" class="tab-content p-6 glass-card rounded-3xl shadow-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center themed-text">Lyrics</h2>
+            <textarea id="lyricsText" class="input-glass w-full h-40 p-4 rounded-xl focus:ring-2 themed-ring resize-y transition-all duration-200 text-inherit" placeholder="Write your lyrics here..."></textarea>
+            <div class="flex space-x-2 mt-4 justify-center">
+                <button id="find-rhymes-btn" class="action-btn themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">Find Rhymes</button>
+                <button id="suggest-lyrics-btn" class="action-btn themed-bg text-white py-3 px-6 rounded-full font-bold shadow-md transition-colors duration-300">Suggest Lyrics</button>
+            </div>
+            <div id="lyricsHelp" class="mt-4 p-4 glass-card rounded-xl whitespace-pre-wrap min-h-[80px] shadow-inner"></div>
+        </section>
+    </main>
+
+    <div class="fixed bottom-4 left-4 z-50 flex flex-col space-y-2">
+        <!-- New button for changing the background -->
+        <button id="change-bg-btn" class="p-3 rounded-full themed-bg text-white shadow-md transition-colors duration-200 glass-card !bg-transparent">
+            <i class="fas fa-image"></i>
+        </button>
+        <input type="file" id="bg-file-input" class="hidden" accept="image/*">
+
+        <!-- Dark mode button -->
+        <button id="dark-mode-button" class="p-3 rounded-full themed-bg text-white shadow-md transition-colors duration-200 glass-card !bg-transparent">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <script type="module">
+        // Global variables provided by the Canvas environment for authentication
+        const API_KEY = ""; // This will be automatically filled by the Canvas environment for AI calls
+        
+        // --- AI API CALL FUNCTION ---
+        // This function makes a call to the Gemini API to get daily info (weather, traffic, holiday/quote)
+        async function getDailyInfo(date, location) {
+            const prompt = `Given the date ${date} and the general location of ${location}, provide a concise daily summary in JSON format.
+            The JSON should contain three keys:
+            1. 'weather': a short, descriptive weather summary (e.g., 'Sunny with a high of 75°F').
+            2. 'traffic': a short traffic summary for a major city in the provided location (e.g., 'Traffic is light on the I-45, but expect delays near downtown Houston').
+            3. 'holiday_or_quote': The name of any major holiday on that date. If there is no holiday, provide a single, short, inspirational quote instead.`;
+
+            // Prepare the API payload with a structured response schema
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            weather: { "type": "STRING" },
+                            traffic: { "type": "STRING" },
+                            holiday_or_quote: { "type": "STRING" }
+                        },
+                        propertyOrdering: ["weather", "traffic", "holiday_or_quote"]
+                    }
+                }
+            };
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+            
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429) {
+                            const delay = Math.pow(2, retryCount) * 1000;
+                            console.warn(`API call limit reached. Retrying in ${delay}ms...`);
+                            await new Promise(res => setTimeout(res, delay));
+                            retryCount++;
+                            continue;
+                        }
+                        throw new Error(`API error: ${response.status} ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const jsonString = result.candidates[0].content.parts[0].text;
+                        return JSON.parse(jsonString);
+                    } else {
+                        throw new Error("Invalid response format from AI.");
+                    }
+                } catch (error) {
+                    console.error("Error calling AI:", error);
+                    // On error, return a default placeholder
+                    return { weather: 'Failed to get weather.', traffic: 'Failed to get traffic.', holiday_or_quote: 'Failed to get quote.' };
+                }
+            }
+            return { weather: 'Failed after multiple retries.', traffic: 'Failed after multiple retries.', holiday_or_quote: 'Failed after multiple retries.' };
+        }
+
+        // --- Global State Variables ---
+        let dailyData = {}; // Stores all daily information: { 'YYYY-MM-DD': { notes: [], events: [], weather: {} } }
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+        let uiSettings = {
+            accentColor: '#5b21b6',
+            darkMode: false,
+            backgroundUrl: null, // New variable for the custom background URL
+        };
+        let plannerText = '';
+        let isAuthenticated = false;
+        let selectedDate = null;
+        let userLocation = 'New York City'; // Placeholder location
+
+        // --- UI Elements ---
+        const appContent = document.getElementById('app-content');
+        const modalContainer = document.getElementById('modal-container');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalFooter = document.getElementById('modal-footer');
+        const calendarGrid = document.getElementById('calendar-grid');
+        const currentMonthYearEl = document.getElementById('current-month-year');
+        const body = document.body;
+        const darkModeButton = document.getElementById('dark-mode-button');
+        const plannerTextarea = document.getElementById('plannerText');
+        const lockAppBtn = document.getElementById('lock-app-btn');
+        const unlockAppBtn = document.getElementById('unlock-app-btn');
+        
+        const calendarViewContainer = document.getElementById('calendar-view-container');
+        const calendarContainer = document.getElementById('calendar-container');
+        const dayDetailsPanel = document.getElementById('day-details-panel');
+        const closeDayDetailsBtn = document.getElementById('close-day-details-btn');
+        const dayDetailsDateEl = document.getElementById('day-details-date');
+        const weatherInfoEl = document.getElementById('weather-info');
+        const trafficInfoEl = document.getElementById('traffic-info');
+        const holidayInfoEl = document.getElementById('holiday-info');
+        const dailyNoteTextarea = document.getElementById('daily-note-text');
+        const saveDailyNoteBtn = document.getElementById('save-daily-note-btn');
+        const dailyNotesList = document.getElementById('daily-notes-list');
+        const eventInput = document.getElementById('event-input');
+        const addEventBtn = document.getElementById('add-event-btn');
+        const eventBubblesContainer = document.getElementById('event-bubbles-container');
+        const generateSummaryBtn = document.getElementById('generate-summary-btn');
+        const aiSummaryOutput = document.getElementById('ai-summary-output');
+        const backgroundContainer = document.getElementById('background-container');
+        const changeBgBtn = document.getElementById('change-bg-btn');
+        const bgFileInput = document.getElementById('bg-file-input');
+
+        // --- New Dynamic Sky Elements ---
+        const dynamicSky = document.getElementById('dynamic-sky');
+        const celestialBody = document.getElementById('celestial-body');
+        const cloudsContainer = document.getElementById('clouds-container');
+        
+        // --- Data Persistence ---
+        const DATA_KEY = 'mindcloud-data';
+        const PIN_KEY = 'mindcloud-pin';
+
+        function hashPin(pin) {
+            let hash = 0;
+            for (let i = 0; i < pin.length; i++) {
+                hash = (hash << 5) - hash + pin.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash;
+        }
+
+        function loadData() {
+            try {
+                const data = JSON.parse(localStorage.getItem(DATA_KEY));
+                if (data) {
+                    dailyData = data.dailyData || {};
+                    uiSettings = data.uiSettings || uiSettings;
+                    plannerTextarea.value = data.plannerText || '';
+                }
+            } catch (error) {
+                console.error("Failed to load data from localStorage", error);
+            }
+        }
+
+        function saveData() {
+            const data = {
+                dailyData,
+                uiSettings,
+                plannerText: plannerTextarea.value,
+            };
+            localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        }
+
+        // --- Modal Functionality ---
+        function showModal(title, bodyHtml, footerHtml = '') {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalFooter.innerHTML = footerHtml;
+            modalContainer.classList.remove('modal-inactive');
+            modalContainer.classList.add('modal-active');
+        }
+
+        function hideModal() {
+            modalContainer.classList.remove('modal-active');
+            modalContainer.classList.add('modal-inactive');
+        }
+
+        // --- Tab Functionality ---
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tab = button.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    if (content.id === tab) {
+                        content.classList.remove('hidden');
+                    } else {
+                        content.classList.add('hidden');
+                    }
+                });
+
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active-tab');
+                    btn.classList.add('glass-card');
+                });
+                button.classList.add('active-tab');
+                button.classList.remove('glass-card');
+
+                // When switching tabs, close the day details panel
+                if (tab !== 'calendar') {
+                    closeDayDetails();
+                }
+            });
+        });
+
+        // --- Theme and UI Logic ---
+        function applyTheme() {
+            document.documentElement.style.setProperty('--accent-color', uiSettings.accentColor);
+            body.classList.toggle('dark', uiSettings.darkMode);
+        }
+        
+        function applyBackground() {
+            if (uiSettings.backgroundUrl) {
+                backgroundContainer.style.backgroundImage = `url('${uiSettings.backgroundUrl}')`;
+            } else {
+                backgroundContainer.style.backgroundImage = `none`;
+            }
+        }
+
+        // --- Dynamic Sky Logic ---
+        const RADIUS = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+        
+        // Function to create a cloud element
+        function createCloud(className, top, left, animationDuration) {
+            const cloud = document.createElement('div');
+            cloud.className = `cloud ${className}`;
+            cloud.style.top = `${top}px`;
+            cloud.style.left = `${left}px`;
+            cloud.style.animationDuration = `${animationDuration}s`;
+            cloudsContainer.appendChild(cloud);
+        }
+
+        // Initialize clouds
+        function initializeClouds() {
+            // Clear existing clouds
+            cloudsContainer.innerHTML = '';
+
+            const cloudCount = 10;
+            for (let i = 0; i < cloudCount; i++) {
+                const top = Math.random() * (window.innerHeight * 0.4); // Clouds in the top 40% of the screen
+                const left = Math.random() * window.innerWidth - window.innerWidth * 0.5;
+                const className = Math.random() < 0.5 ? 'cloud-1' : 'cloud-2';
+                const duration = 20 + Math.random() * 20; // 20s to 40s
+                createCloud(className, top, left, duration);
+            }
+        }
+
+        // Function to update the sky based on time and weather
+        function updateSky(weatherCondition) {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+
+            // Check if it's day or night
+            const isDay = hours >= 6 && hours < 18;
+
+            // Set background and celestial body classes
+            if (isDay) {
+                dynamicSky.classList.remove('night');
+                celestialBody.classList.remove('moon');
+                celestialBody.classList.add('sun');
+            } else {
+                dynamicSky.classList.add('night');
+                celestialBody.classList.remove('sun');
+                celestialBody.classList.add('moon');
+            }
+
+            // Calculate the position of the celestial body (simulating an arc)
+            let angle;
+            if (isDay) {
+                const totalHours = 12;
+                const currentHourOfDay = hours + minutes / 60 - 6;
+                angle = (currentHourOfDay / totalHours) * 180;
+            } else {
+                const totalHours = 12;
+                const currentHourOfDay = (hours + minutes / 60) - 18;
+                angle = (currentHourOfDay / totalHours) * 180 + 180;
+            }
+
+            // Convert angle to radians for trigonometric functions
+            const angleInRadians = (angle - 90) * (Math.PI / 180);
+
+            // Calculate x and y position
+            const x = Math.cos(angleInRadians) * RADIUS;
+            const y = Math.sin(angleInRadians) * RADIUS;
+            
+            // Adjust the transform to place the sun/moon along the arc
+            celestialBody.style.transform = `translate(calc(-50% + ${x}px), calc(-50% - ${y}px))`;
+
+            // Update clouds based on weather condition
+            if (weatherCondition && weatherCondition.toLowerCase().includes('cloudy')) {
+                cloudsContainer.classList.add('cloudy');
+            } else {
+                cloudsContainer.classList.remove('cloudy');
+            }
+        }
+        
+        // --- Calendar Logic ---
+        function renderCalendar() {
+            const date = new Date(currentYear, currentMonth);
+            currentMonthYearEl.textContent = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+            
+            // Clear previous days
+            const dayHeaders = Array.from(calendarGrid.querySelectorAll('div:not([data-day-number])'));
+            calendarGrid.innerHTML = '';
+            dayHeaders.forEach(header => calendarGrid.appendChild(header));
+
+            const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            // Add empty boxes for preceding days
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const emptyBox = document.createElement('div');
+                emptyBox.classList.add('day-box', 'h-12', 'w-12', 'rounded-md', 'text-center', 'text-gray-400', 'flex', 'items-center', 'justify-center', 'p-1', 'opacity-0');
+                calendarGrid.appendChild(emptyBox);
+            }
+
+            // Add day boxes for the current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayBox = document.createElement('div');
+                dayBox.classList.add('day-box', 'rounded-md', 'text-center', 'cursor-pointer', 'relative', 'p-1', 'aspect-square');
+                dayBox.dataset.dayNumber = day;
+
+                const dayContent = document.createElement('div');
+                dayContent.classList.add('absolute', 'inset-0', 'flex', 'items-center', 'justify-center');
+                dayContent.textContent = day;
+                dayBox.appendChild(dayContent);
+
+                const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // Add note indicator if a note exists
+                if (dailyData[dateKey] && dailyData[dateKey].notes.length > 0) {
+                    dayBox.classList.add('note-day', 'ring-2', 'ring-violet-500');
+                }
+
+                dayBox.addEventListener('click', () => openDayDetails(new Date(currentYear, currentMonth, day)));
+                calendarGrid.appendChild(dayBox);
+            }
+        }
+
+        function changeMonth(direction) {
+            currentMonth += direction;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+            closeDayDetails(); // Close details panel when changing months
+        }
+
+        // --- Day Details Panel Logic ---
+        async function openDayDetails(date) {
+            selectedDate = date;
+            const dateKey = selectedDate.toISOString().split('T')[0];
+            const dayData = dailyData[dateKey] || { notes: [], events: [] };
+
+            // Add classes to animate the calendar and details panel
+            calendarContainer.classList.add('md:w-2/3');
+            calendarContainer.classList.add('shrunk');
+            dayDetailsPanel.classList.remove('hidden');
+            dayDetailsPanel.classList.add('visible');
+            dayDetailsPanel.classList.add('md:w-1/3');
+            
+            dayDetailsDateEl.textContent = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Show loading state for daily info
+            weatherInfoEl.textContent = 'Loading weather...';
+            trafficInfoEl.textContent = 'Loading traffic...';
+            holidayInfoEl.textContent = 'Loading holiday/quote...';
+            
+            // Call the AI function to get daily info
+            const dailyInfo = await getDailyInfo(dateKey, userLocation);
+            weatherInfoEl.textContent = dailyInfo.weather;
+            trafficInfoEl.textContent = dailyInfo.traffic;
+            holidayInfoEl.textContent = dailyInfo.holiday_or_quote;
+
+            // Update the sky animation based on the fetched weather
+            updateSky(dailyInfo.weather);
+
+            // Populate notes and events
+            dailyNoteTextarea.value = ''; // Reset input
+            renderDailyNotes(dateKey);
+            renderEventBubbles(dateKey);
+        }
+
+        function closeDayDetails() {
+            calendarContainer.classList.remove('md:w-2/3');
+            calendarContainer.classList.remove('shrunk');
+            dayDetailsPanel.classList.remove('visible');
+            dayDetailsPanel.classList.remove('md:w-1/3');
+            dayDetailsPanel.classList.add('hidden');
+            selectedDate = null;
+            updateSky('clear'); // Reset sky animation when closed
+        }
+
+        function renderDailyNotes(dateKey) {
+            dailyNotesList.innerHTML = '';
+            const dayData = dailyData[dateKey];
+            if (dayData && dayData.notes.length > 0) {
+                dayData.notes.forEach((note, index) => {
+                    const noteEl = document.createElement('div');
+                    noteEl.className = 'glass-card p-3 rounded-xl flex justify-between items-center';
+                    noteEl.innerHTML = `
+                        <span>${note}</span>
+                        <button class="text-red-500 hover:text-red-700 transition-colors duration-200" data-note-index="${index}"><i class="fas fa-trash-alt"></i></button>
+                    `;
+                    noteEl.querySelector('button').addEventListener('click', (e) => {
+                        const noteIndex = e.currentTarget.dataset.note-index;
+                        dayData.notes.splice(noteIndex, 1);
+                        saveData();
+                        renderDailyNotes(dateKey);
+                        renderCalendar(); // Rerender to remove ring if no more notes
+                    });
+                    dailyNotesList.appendChild(noteEl);
+                });
+            } else {
+                dailyNotesList.innerHTML = '<p class="text-center text-gray-500">No notes for this day.</p>';
+            }
+        }
+
+        function renderEventBubbles(dateKey) {
+            eventBubblesContainer.innerHTML = '';
+            const dayData = dailyData[dateKey];
+            if (dayData && dayData.events.length > 0) {
+                dayData.events.forEach((event, index) => {
+                    const eventEl = document.createElement('span');
+                    eventEl.className = 'bg-violet-200 text-violet-800 dark:bg-violet-800 dark:text-violet-200 text-sm font-semibold px-3 py-1 rounded-full flex items-center space-x-1';
+                    eventEl.innerHTML = `
+                        <span>${event}</span>
+                        <button class="text-violet-500 hover:text-red-500 transition-colors duration-200" data-event-index="${index}"><i class="fas fa-times-circle"></i></button>
+                    `;
+                    eventEl.querySelector('button').addEventListener('click', (e) => {
+                        const eventIndex = e.currentTarget.dataset.eventIndex;
+                        dayData.events.splice(eventIndex, 1);
+                        saveData();
+                        renderEventBubbles(dateKey);
+                    });
+                    eventBubblesContainer.appendChild(eventEl);
+                });
+            } else {
+                eventBubblesContainer.innerHTML = '<p class="text-center text-gray-500">No events for this day.</p>';
+            }
+        }
+        
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            applyTheme();
+            applyBackground();
+            renderCalendar();
+            
+            // Initialize and start the dynamic sky simulation
+            updateSky('clear'); // Default to clear sky on load
+            initializeClouds();
+            setInterval(() => updateSky('clear'), 60000); // Update every minute, defaulting to a clear sky
+            
+            // Show the first tab
+            appContent.classList.remove('hidden');
+            document.getElementById('calendar').classList.remove('hidden');
+        });
+
+        darkModeButton.addEventListener('click', () => {
+            uiSettings.darkMode = !uiSettings.darkMode;
+            applyTheme();
+            saveData();
+        });
+
+        changeBgBtn.addEventListener('click', () => {
+            bgFileInput.click();
+        });
+
+        bgFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uiSettings.backgroundUrl = e.target.result;
+                    applyBackground();
+                    saveData();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('prev-month-btn').addEventListener('click', () => changeMonth(-1));
+        document.getElementById('next-month-btn').addEventListener('click', () => changeMonth(1));
+
+        closeDayDetailsBtn.addEventListener('click', closeDayDetails);
+
+        saveDailyNoteBtn.addEventListener('click', () => {
+            if (!selectedDate) return;
+            const dateKey = selectedDate.toISOString().split('T')[0];
+            const noteText = dailyNoteTextarea.value.trim();
+            if (noteText) {
+                if (!dailyData[dateKey]) dailyData[dateKey] = { notes: [], events: [] };
+                dailyData[dateKey].notes.push(noteText);
+                saveData();
+                dailyNoteTextarea.value = '';
+                renderDailyNotes(dateKey);
+                renderCalendar();
+            }
+        });
+
+        addEventBtn.addEventListener('click', () => {
+            if (!selectedDate) return;
+            const dateKey = selectedDate.toISOString().split('T')[0];
+            const eventText = eventInput.value.trim();
+            if (eventText) {
+                const newEvents = eventText.split(',').map(e => e.trim()).filter(e => e.length > 0);
+                if (!dailyData[dateKey]) dailyData[dateKey] = { notes: [], events: [] };
+                dailyData[dateKey].events.push(...newEvents);
+                saveData();
+                eventInput.value = '';
+                renderEventBubbles(dateKey);
+            }
+        });
+
+        generateSummaryBtn.addEventListener('click', async () => {
+            if (!selectedDate) return;
+            const dateKey = selectedDate.toISOString().split('T')[0];
+            const dayData = dailyData[dateKey] || { notes: [], events: [] };
+            
+            const prompt = `Summarize a person's day based on the following information:
+            Date: ${selectedDate.toDateString()}
+            Notes: ${dayData.notes.join(', ') || 'No notes.'}
+            Events: ${dayData.events.join(', ') || 'No events.'}
+            Keep the summary friendly and encouraging.`;
+
+            aiSummaryOutput.textContent = 'Generating summary...';
+            // Here you would call a similar API for summary generation
+            // const summary = await callAI(prompt);
+            aiSummaryOutput.textContent = 'Based on your planned events, it looks like a great day!';
+        });
+    </script>
+</body>
+</html>
